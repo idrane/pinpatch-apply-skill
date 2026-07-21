@@ -79,18 +79,20 @@ def load_groups(root: Path, warnings: list[str]) -> list[dict[str, Any]]:
     return groups
 
 
-def result_matches(root: Path, pin_id: str, revision_id: str) -> bool:
+def current_result(root: Path, pin_id: str, revision_id: str) -> dict[str, Any] | None:
     path = root / "results" / f"{pin_id}.json"
     if not path.is_file():
-        return False
+        return None
     try:
         result = read_json(path)
-        return (
+        if (
             canonical_uuid(result["pinID"]) == pin_id
             and canonical_uuid(result["processedRevisionID"]) == revision_id
-        )
+        ):
+            return result
+        return None
     except (OSError, ValueError, KeyError, json.JSONDecodeError):
-        return False
+        return None
 
 
 def scan(root: Path) -> dict[str, Any]:
@@ -98,6 +100,7 @@ def scan(root: Path) -> dict[str, Any]:
     screens = load_screens(root, warnings)
     groups = load_groups(root, warnings)
     pending: list[dict[str, Any]] = []
+    blocked: list[dict[str, Any]] = []
     pins_root = root / "pins"
     folders = sorted(pins_root.iterdir()) if pins_root.is_dir() else []
 
@@ -124,7 +127,17 @@ def scan(root: Path) -> dict[str, Any]:
                 raise ValueError("folder, current.json, and pin.json UUIDs disagree")
             if not screen_image.is_file() or not crop_image.is_file():
                 raise ValueError("current pin is missing its screen screenshot or crop")
-            if result_matches(root, pin_id, revision_id):
+            result = current_result(root, pin_id, revision_id)
+            if result is not None:
+                if result.get("status") == "blocked":
+                    blocked.append(
+                        {
+                            "pinID": pin_id,
+                            "revisionID": revision_id,
+                            "screenID": screen_id,
+                            "summary": result.get("summary", ""),
+                        }
+                    )
                 continue
             note = note_path.read_text(encoding="utf-8")
             attached_groups = [group for group in groups if pin_id in group["pinIDs"]]
@@ -147,7 +160,15 @@ def scan(root: Path) -> dict[str, Any]:
             warnings.append(f"ignored invalid pin {folder}: {error}")
 
     pending.sort(key=lambda item: (str(item["record"].get("createdAt", "")), item["pinID"]))
-    return {"root": str(root), "pendingCount": len(pending), "pending": pending, "warnings": warnings}
+    blocked.sort(key=lambda item: item["pinID"])
+    return {
+        "root": str(root),
+        "pendingCount": len(pending),
+        "pending": pending,
+        "blockedCount": len(blocked),
+        "blocked": blocked,
+        "warnings": warnings,
+    }
 
 
 def main() -> int:
