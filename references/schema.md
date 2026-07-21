@@ -7,8 +7,8 @@ PinPatch/
 ├── manifest.json
 ├── index.json
 ├── screens/<screenID>.json
+├── screens/<screenID>/screen.png
 ├── pins/<pinID>/
-│   ├── assets/screen.png
 │   ├── assets/crop.png
 │   ├── revisions/<revisionID>/pin.json
 │   ├── revisions/<revisionID>/note.md
@@ -29,9 +29,9 @@ Identifiers are stable UUIDs:
 
 Visible labels such as `1-1` are recalculated presentation values. Never use them in filenames, links, lookups, or results.
 
-Screen fingerprints contain framework, leaf controller kind, optional SwiftUI root type and semantic digest, normalized title, modal state, and algorithm version. They are search context, not source-code paths.
+Screen fingerprints contain the raw navigation title, normalized title, and algorithm version. The normalized title is the only identity input. The first completed pin on a screen creates the shared full-screen screenshot; it remains while that screen has any pins and is removed with the last pin.
 
-SwiftUI limitation: public APIs cannot always reveal a `NavigationStack` destination's concrete type or expose every pure-SwiftUI semantic node through UIKit accessibility containers. Screens with the same publicly visible hosting root type, normalized title, modal state, and accessibility semantic structure can merge. UIKit screens with the same leaf controller kind, normalized title, and modal state can also merge.
+Screens with the same normalized title merge, and all untitled screens merge. Framework, controller hierarchy, accessibility content, SwiftUI root type, and presentation style remain available only in per-pin element hints where applicable; they do not determine Screen IDs.
 
 Write results only through `scripts/record_result.py`. It validates the current revision immediately before an atomic replace and writes:
 

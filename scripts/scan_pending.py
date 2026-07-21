@@ -111,16 +111,19 @@ def scan(root: Path) -> dict[str, Any]:
             revision_root = folder / "revisions" / revision_id
             record_path = revision_root / "pin.json"
             note_path = revision_root / "note.md"
-            screen_image = folder / "assets/screen.png"
             crop_image = folder / "assets/crop.png"
             record = read_json(record_path)
             pin_id = canonical_uuid(record["pinID"])
             record_revision_id = canonical_uuid(record["revisionID"])
             screen_id = canonical_uuid(record["screenID"])
+            screen_image = root / "screens" / screen_id / "screen.png"
+            legacy_screen_image = folder / "assets/screen.png"
+            if not screen_image.is_file() and legacy_screen_image.is_file():
+                screen_image = legacy_screen_image
             if pin_id != folder_pin_id or record_revision_id != revision_id:
                 raise ValueError("folder, current.json, and pin.json UUIDs disagree")
             if not screen_image.is_file() or not crop_image.is_file():
-                raise ValueError("current pin is missing a screenshot or crop")
+                raise ValueError("current pin is missing its screen screenshot or crop")
             if result_matches(root, pin_id, revision_id):
                 continue
             note = note_path.read_text(encoding="utf-8")
